@@ -12,7 +12,8 @@ import filelock
 import huggingface_hub.constants
 import numpy as np
 import torch
-from huggingface_hub import HfFileSystem, snapshot_download
+from huggingface_hub import HfFileSystem, snapshot_download, try_to_load_from_cache, _CACHED_NO_EXIST
+from huggingface_hub.constants import HF_HUB_OFFLINE
 from safetensors.torch import load_file, safe_open, save_file
 from tqdm.auto import tqdm
 
@@ -179,6 +180,19 @@ def download_weights_from_hf(model_name_or_path: str,
     Returns:
         str: The path to the downloaded model weights.
     """
+    # In offline mode HfFileSystem.ls() will not work, so we test if cache can provide our weights
+    maybe_cached_model_path = try_to_load_from_cache(model_name_or_path,
+                                                     "config.json",
+                                                     cache_dir=cache_dir,
+                                                     revision=revision)
+    if HF_HUB_OFFLINE and maybe_cached_model_path and maybe_cached_model_path != _CACHED_NO_EXIST:
+        hf_folder = os.path.dirname(maybe_cached_model_path)
+        for pattern in allow_patterns:
+            # If at least one file is matched by a pattern we assume the cached files are satisfying,
+            # otherwise we let HfFileSystem.ls() raise an offline mode error.
+            if len(fnmatch.filter(os.listdir(hf_folder), pattern)) > 0:
+                return hf_folder
+
     # Before we download we look at that is available:
     fs = HfFileSystem()
     file_list = fs.ls(model_name_or_path, detail=False, revision=revision)

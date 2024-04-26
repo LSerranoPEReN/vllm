@@ -150,7 +150,7 @@ class DefaultModelLoader(BaseModelLoader):
         model_name_or_path = self._maybe_download_from_modelscope(
             model_name_or_path, revision) or model_name_or_path
 
-        is_local = os.path.isdir(model_name_or_path)
+        is_local_path = os.path.isdir(model_name_or_path)
         load_format = self.load_config.load_format
         use_safetensors = False
         # Some quantized models use .pt files for storing the weights.
@@ -169,7 +169,7 @@ class DefaultModelLoader(BaseModelLoader):
         if fall_back_to_pt:
             allow_patterns += ["*.pt"]
 
-        if not is_local:
+        if not is_local_path:
             hf_folder = download_weights_from_hf(model_name_or_path,
                                                  self.load_config.download_dir,
                                                  allow_patterns, revision)
